@@ -7,15 +7,10 @@ pipeline {
 
     stages {
 
-        stage('Clone') {
-            steps {
-                git 'https://github.com/YOUR_USERNAME/ecommerce-app.git'
-            }
-        }
-
         stage('Validate') {
             steps {
                 sh '''
+                sh 'ls -l'
                 python3 -m py_compile services/addToCart/lambda_function.py
                 python3 -m py_compile services/getCart/lambda_function.py
                 python3 -m py_compile services/checkoutCart/lambda_function.py
