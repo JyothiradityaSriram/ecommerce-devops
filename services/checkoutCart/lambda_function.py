@@ -3,6 +3,10 @@ import boto3
 import uuid
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource("dynamodb")
 
@@ -11,15 +15,19 @@ products_table = dynamodb.Table("Products")
 orders_table = dynamodb.Table("Orders")
 order_items_table = dynamodb.Table("OrderItems")
 
-def lambda_handler(event, context):
 
+def lambda_handler(event, context):
     try:
+        logger.info(f"Incoming event: {event}")
+
         claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
         user_id = claims["sub"]
 
         cart = cart_table.query(
             KeyConditionExpression=Key("userId").eq(user_id)
         )["Items"]
+
+        logger.info(f"Cart items: {cart}")
 
         if not cart:
             return {
@@ -32,12 +40,12 @@ def lambda_handler(event, context):
         total = 0
 
         for c in cart:
-
             product_response = products_table.get_item(
                 Key={"id": c["productId"]}
             )
 
             if "Item" not in product_response:
+                logger.warning(f"Product not found: {c['productId']}")
                 continue
 
             product = product_response["Item"]
@@ -67,6 +75,8 @@ def lambda_handler(event, context):
             }
         )
 
+        logger.info(f"Order created: {order_id}, total: {total}")
+
         for i in items:
             order_items_table.put_item(
                 Item={
@@ -87,6 +97,8 @@ def lambda_handler(event, context):
                 }
             )
 
+        logger.info("Cart cleared")
+
         return {
             "statusCode": 200,
             "headers": {"Access-Control-Allow-Origin": "*"},
@@ -97,6 +109,8 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
+        logger.error(f"Error occurred: {str(e)}")
+
         return {
             "statusCode": 500,
             "headers": {"Access-Control-Allow-Origin": "*"},
