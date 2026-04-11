@@ -2,12 +2,18 @@ import json
 import boto3
 import uuid
 from datetime import datetime
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('cart-table')  # your DynamoDB table name
+table = dynamodb.Table('cart-table')
 
 def lambda_handler(event, context):
     try:
+        logger.info(f"Incoming event: {event}")
+
         body = json.loads(event['body'])
 
         user_id = body['userId']
@@ -26,6 +32,8 @@ def lambda_handler(event, context):
 
         table.put_item(Item=item)
 
+        logger.info(f"Item stored in DynamoDB: {item}")
+
         return {
             "statusCode": 200,
             "body": json.dumps({
@@ -35,6 +43,8 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
+        logger.error(f"Error occurred: {str(e)}")
+
         return {
             "statusCode": 500,
             "body": json.dumps({
