@@ -10,7 +10,7 @@ pipeline {
         stage('Validate') {
             steps {
                 sh '''
-                'ls -l'
+                ls -l
                 python3 -m py_compile services/addToCart/lambda_function.py
                 python3 -m py_compile services/getCart/lambda_function.py
                 python3 -m py_compile services/checkoutCart/lambda_function.py
