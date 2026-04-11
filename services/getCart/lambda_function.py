@@ -1,19 +1,24 @@
 import json
 import boto3
 from boto3.dynamodb.conditions import Key
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource("dynamodb")
 
 cart_table = dynamodb.Table("cart")
 products_table = dynamodb.Table("Products")
 
-def lambda_handler(event, context):
 
+def lambda_handler(event, context):
     try:
+        logger.info(f"Incoming event: {event}")
+
         claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
         user_id = claims["sub"]
 
-        # Get only this user's cart
         cart_response = cart_table.query(
             KeyConditionExpression=Key("userId").eq(user_id)
         )
@@ -30,6 +35,7 @@ def lambda_handler(event, context):
             )
 
             if "Item" not in product_response:
+                logger.warning(f"Product missing: {item['productId']}")
                 continue
 
             product = product_response["Item"]
@@ -48,6 +54,8 @@ def lambda_handler(event, context):
 
             cart_total += subtotal
 
+        logger.info(f"Cart total: {cart_total}")
+
         return {
             "statusCode": 200,
             "headers": {"Access-Control-Allow-Origin": "*"},
@@ -58,6 +66,8 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
+        logger.error(f"Error occurred: {str(e)}")
+
         return {
             "statusCode": 500,
             "headers": {"Access-Control-Allow-Origin": "*"},
