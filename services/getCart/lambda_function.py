@@ -12,12 +12,30 @@ cart_table = dynamodb.Table("cart")
 products_table = dynamodb.Table("Products")
 
 
+def response(status, body):
+    return {
+        "statusCode": status,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+            "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS"
+        },
+        "body": json.dumps(body)
+    }
+
+
+def get_user_id(event):
+    return event["requestContext"]["authorizer"]["jwt"]["claims"]["sub"]
+
+
 def lambda_handler(event, context):
     try:
         logger.info(f"Incoming event: {event}")
 
-        claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
-        user_id = claims["sub"]
+        if event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+            return response(200, {})
+
+        user_id = get_user_id(event)
 
         cart_response = cart_table.query(
             KeyConditionExpression=Key("userId").eq(user_id)
@@ -29,13 +47,11 @@ def lambda_handler(event, context):
         cart_total = 0
 
         for item in cart_items:
-
             product_response = products_table.get_item(
                 Key={"id": item["productId"]}
             )
 
             if "Item" not in product_response:
-                logger.warning(f"Product missing: {item['productId']}")
                 continue
 
             product = product_response["Item"]
@@ -54,22 +70,11 @@ def lambda_handler(event, context):
 
             cart_total += subtotal
 
-        logger.info(f"Cart total: {cart_total}")
-
-        return {
-            "statusCode": 200,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({
-                "items": enriched_cart,
-                "cartTotal": cart_total
-            })
-        }
+        return response(200, {
+            "items": enriched_cart,
+            "cartTotal": cart_total
+        })
 
     except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
-
-        return {
-            "statusCode": 500,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"error": str(e)})
-        }
+        logger.error(str(e), exc_info=True)
+        return response(500, {"error": str(e)})
