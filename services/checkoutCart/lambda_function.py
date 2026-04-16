@@ -16,39 +16,48 @@ orders_table = dynamodb.Table("Orders")
 order_items_table = dynamodb.Table("OrderItems")
 
 
+def response(status, body):
+    return {
+        "statusCode": status,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+            "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS"
+        },
+        "body": json.dumps(body)
+    }
+
+
+def get_user_id(event):
+    return event["requestContext"]["authorizer"]["jwt"]["claims"]["sub"]
+
+
 def lambda_handler(event, context):
     try:
         logger.info(f"Incoming event: {event}")
 
-        claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
-        user_id = claims["sub"]
+        if event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+            return response(200, {})
+
+        user_id = get_user_id(event)
 
         cart = cart_table.query(
             KeyConditionExpression=Key("userId").eq(user_id)
         )["Items"]
 
-        logger.info(f"Cart items: {cart}")
-
         if not cart:
-            return {
-                "statusCode": 400,
-                "headers": {"Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"message": "Cart is empty"})
-            }
+            return response(400, {"message": "Cart is empty"})
 
         items = []
         total = 0
 
         for c in cart:
-            product_response = products_table.get_item(
+            product = products_table.get_item(
                 Key={"id": c["productId"]}
-            )
+            ).get("Item")
 
-            if "Item" not in product_response:
-                logger.warning(f"Product not found: {c['productId']}")
+            if not product:
                 continue
-
-            product = product_response["Item"]
 
             price = int(product["price"])
             quantity = int(c["quantity"])
@@ -75,8 +84,6 @@ def lambda_handler(event, context):
             }
         )
 
-        logger.info(f"Order created: {order_id}, total: {total}")
-
         for i in items:
             order_items_table.put_item(
                 Item={
@@ -88,7 +95,7 @@ def lambda_handler(event, context):
                 }
             )
 
-        # Clear cart
+        # clear cart
         for c in cart:
             cart_table.delete_item(
                 Key={
@@ -97,22 +104,11 @@ def lambda_handler(event, context):
                 }
             )
 
-        logger.info("Cart cleared")
-
-        return {
-            "statusCode": 200,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({
-                "message": "Order placed",
-                "orderId": order_id
-            })
-        }
+        return response(200, {
+            "message": "Order placed",
+            "orderId": order_id
+        })
 
     except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
-
-        return {
-            "statusCode": 500,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"error": str(e)})
-        }
+        logger.error(str(e), exc_info=True)
+        return response(500, {"error": str(e)})
