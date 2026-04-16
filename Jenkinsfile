@@ -1,56 +1,79 @@
 pipeline {
-    agent any
+agent any
 
-    environment {
-        AWS_DEFAULT_REGION = "ap-south-1"
+```
+environment {
+    AWS_DEFAULT_REGION = "ap-south-1"
+}
+
+stages {
+
+    stage('Validate') {
+        steps {
+            sh '''
+            set -e
+            python3 -m py_compile services/addToCart/lambda_function.py
+            python3 -m py_compile services/getCart/lambda_function.py
+            python3 -m py_compile services/checkoutCart/lambda_function.py
+            python3 -m py_compile services/getOrders/lambda_function.py
+            python3 -m py_compile services/getProduct/lambda_function.py
+            python3 -m py_compile services/getProducts/lambda_function.py
+            '''
+        }
     }
 
-    stages {
+    stage('Package') {
+        steps {
+            sh '''
+            set -e
 
-        stage('Validate') {
-            steps {
-                sh '''
-                ls -l
-                python3 -m py_compile services/addToCart/lambda_function.py
-                python3 -m py_compile services/getCart/lambda_function.py
-                python3 -m py_compile services/checkoutCart/lambda_function.py
-                python3 -m py_compile services/getOrders/lambda_function.py
-                '''
-            }
+            # Clean old zips
+            rm -f services/*/function.zip
+
+            # Controlled packaging (ONLY required files)
+            cd services/addToCart && zip function.zip lambda_function.py && cd ../../
+            cd services/getCart && zip function.zip lambda_function.py && cd ../../
+            cd services/checkoutCart && zip function.zip lambda_function.py && cd ../../
+            cd services/getOrders && zip function.zip lambda_function.py && cd ../../
+            cd services/getProduct && zip function.zip lambda_function.py && cd ../../
+            cd services/getProducts && zip function.zip lambda_function.py && cd ../../
+            '''
         }
-
-        stage('Package') {
-            steps {
-                sh '''
-                cd services/addToCart && zip -r function.zip .
-                cd ../getCart && zip -r function.zip .
-                cd ../checkoutCart && zip -r function.zip .
-                cd ../getOrders && zip -r function.zip .
-                '''
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                sh '''
-                aws lambda update-function-code \
-                --function-name addToCart \
-                --zip-file fileb://services/addToCart/function.zip
-
-                aws lambda update-function-code \
-                --function-name getCart \
-                --zip-file fileb://services/getCart/function.zip
-
-                aws lambda update-function-code \
-                --function-name checkoutCart \
-                --zip-file fileb://services/checkoutCart/function.zip
-
-                aws lambda update-function-code \
-                --function-name getOrders \
-                --zip-file fileb://services/getOrders/function.zip
-                '''
-            }
-        }
-
     }
+
+    stage('Deploy') {
+        steps {
+            sh '''
+            set -e
+
+            aws lambda update-function-code \
+            --function-name addToCart \
+            --zip-file fileb://services/addToCart/function.zip
+
+            aws lambda update-function-code \
+            --function-name getCart \
+            --zip-file fileb://services/getCart/function.zip
+
+            aws lambda update-function-code \
+            --function-name checkoutCart \
+            --zip-file fileb://services/checkoutCart/function.zip
+
+            aws lambda update-function-code \
+            --function-name getOrders \
+            --zip-file fileb://services/getOrders/function.zip
+
+            aws lambda update-function-code \
+            --function-name getProduct \
+            --zip-file fileb://services/getProduct/function.zip
+
+            aws lambda update-function-code \
+            --function-name getProducts \
+            --zip-file fileb://services/getProducts/function.zip
+            '''
+        }
+    }
+
+}
+```
+
 }
