@@ -12,29 +12,41 @@ orders_table = dynamodb.Table("Orders")
 order_items_table = dynamodb.Table("OrderItems")
 
 
+def response(status, body):
+    return {
+        "statusCode": status,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+            "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS"
+        },
+        "body": json.dumps(body)
+    }
+
+
+def get_user_id(event):
+    return event["requestContext"]["authorizer"]["jwt"]["claims"]["sub"]
+
+
 def lambda_handler(event, context):
     try:
         logger.info(f"Incoming event: {event}")
 
-        claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
-        user_id = claims["sub"]
+        if event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+            return response(200, {})
 
-        logger.info(f"User ID: {user_id}")
+        user_id = get_user_id(event)
 
-        response = orders_table.query(
+        response_db = orders_table.query(
             IndexName="userId-index",
             KeyConditionExpression=Key("userId").eq(user_id)
         )
 
-        orders = response["Items"]
-
-        logger.info(f"Orders fetched: {len(orders)}")
+        orders = response_db["Items"]
 
         result = []
 
         for o in orders:
-            logger.info(f"Processing order: {o['orderId']}")
-
             items_response = order_items_table.query(
                 KeyConditionExpression=Key("orderId").eq(o["orderId"])
             )
@@ -46,17 +58,8 @@ def lambda_handler(event, context):
                 "items": items_response["Items"]
             })
 
-        return {
-            "statusCode": 200,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps(result)
-        }
+        return response(200, result)
 
     except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
-
-        return {
-            "statusCode": 500,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"error": str(e)})
-        }
+        logger.error(str(e), exc_info=True)
+        return response(500, {"error": str(e)})
