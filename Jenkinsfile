@@ -2,62 +2,83 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = "ap-south-1"
-        ECR_REPO = "542175649814.dkr.ecr.ap-south-1.amazonaws.com/cart-service"
-        CLUSTER = "cart-cluster"
-        SERVICE = "cart-service"
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        AWS_DEFAULT_REGION = "ap-south-1"
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Pre-check') {
             steps {
-                checkout scm
+                sh '''
+                set -e
+                echo "Checking required tools..."
+                which python3
+                which zip
+                which aws
+                '''
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Validate') {
             steps {
-                script {
-                    sh "docker build -t cart-service:$IMAGE_TAG ."
-                }
+                sh '''
+                set -e
+                python3 -m py_compile services/addToCart/lambda_function.py
+                python3 -m py_compile services/getCart/lambda_function.py
+                python3 -m py_compile services/checkoutCart/lambda_function.py
+                python3 -m py_compile services/getOrders/lambda_function.py
+                python3 -m py_compile services/getProduct/lambda_function.py
+                python3 -m py_compile services/getProducts/lambda_function.py
+                '''
             }
         }
 
-        stage('Login to ECR') {
+        stage('Package') {
             steps {
-                script {
-                    sh """
-                    aws ecr get-login-password --region $AWS_REGION \
-                    | docker login --username AWS --password-stdin $ECR_REPO
-                    """
-                }
+                sh '''
+                set -e
+
+                rm -f services/*/function.zip
+
+                cd services/addToCart && zip function.zip lambda_function.py && cd ../../
+                cd services/getCart && zip function.zip lambda_function.py && cd ../../
+                cd services/checkoutCart && zip function.zip lambda_function.py && cd ../../
+                cd services/getOrders && zip function.zip lambda_function.py && cd ../../
+                cd services/getProduct && zip function.zip lambda_function.py && cd ../../
+                cd services/getProducts && zip function.zip lambda_function.py && cd ../../
+                '''
             }
         }
 
-        stage('Tag & Push Image') {
+        stage('Deploy') {
             steps {
-                script {
-                    sh """
-                    docker tag cart-service:$IMAGE_TAG $ECR_REPO:$IMAGE_TAG
-                    docker push $ECR_REPO:$IMAGE_TAG
-                    """
-                }
-            }
-        }
+                sh '''
+                set -e
 
-        stage('Deploy to ECS') {
-            steps {
-                script {
-                    sh """
-                    aws ecs update-service \
-                      --cluster $CLUSTER \
-                      --service $SERVICE \
-                      --force-new-deployment \
-                      --region $AWS_REGION
-                    """
-                }
+                aws lambda update-function-code \
+                --function-name addToCart \
+                --zip-file fileb://services/addToCart/function.zip
+
+                aws lambda update-function-code \
+                --function-name getCart \
+                --zip-file fileb://services/getCart/function.zip
+
+                aws lambda update-function-code \
+                --function-name checkoutCart \
+                --zip-file fileb://services/checkoutCart/function.zip
+
+                aws lambda update-function-code \
+                --function-name getOrders \
+                --zip-file fileb://services/getOrders/function.zip
+
+                aws lambda update-function-code \
+                --function-name getProduct \
+                --zip-file fileb://services/getProduct/function.zip
+
+                aws lambda update-function-code \
+                --function-name getProducts \
+                --zip-file fileb://services/getProducts/function.zip
+                '''
             }
         }
     }
