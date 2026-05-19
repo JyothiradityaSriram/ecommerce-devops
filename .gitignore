@@ -4,3 +4,7 @@ __pycache__/
 *.tfstate
 *.tfstate.backup
 .env
+*.log
+node_modules/
+.git
+*.pyc
