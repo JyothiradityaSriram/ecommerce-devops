@@ -19,9 +19,11 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh "docker build -t cart-service:$IMAGE_TAG ."
-                }
+               script {
+                   dir('services/cart-service') {
+                       sh "docker build -t cart-service:${BUILD_NUMBER} ."
+                   }
+               }
             }
         }
 
