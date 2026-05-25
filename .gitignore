@@ -2,6 +2,7 @@
 *.zip
 __pycache__/
 *.tfstate
+*.tfstate.*
 *.tfstate.backup
 .env
 *.log

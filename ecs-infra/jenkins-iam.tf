@@ -36,3 +36,7 @@ resource "aws_iam_user_policy_attachment" "attach" {
   user       = aws_iam_user.jenkins.name
   policy_arn = aws_iam_policy.jenkins_policy.arn
 }
+resource "aws_iam_role_policy_attachment" "jenkins_ecr_power_user" {
+  user       = aws_iam_user.jenkins.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
