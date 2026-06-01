@@ -1,30 +1,55 @@
-resource "aws_iam_user" "jenkins" {
-  name = "jenkins-user"
+# Jenkins EC2 Role
+resource "aws_iam_role" "jenkins_ec2_role" {
+  name = "jenkins-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
 }
 
-resource "aws_iam_policy" "jenkins_policy" {
-  name = "jenkins-ecr-ecs-policy"
+# Instance profile for Jenkins EC2
+resource "aws_iam_instance_profile" "jenkins_instance_profile" {
+  name = "jenkins-instance-profile"
+  role = aws_iam_role.jenkins_ec2_role.name
+}
+
+# NEW policy only for Dockerized cart-service ECS deployment
+resource "aws_iam_policy" "jenkins_ecs_ecr_policy" {
+  name = "jenkins-ecs-ecr-policy"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "ECRPushCartService"
         Effect = "Allow"
         Action = [
           "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
-          "ecr:PutImage",
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
-          "ecr:CompleteLayerUpload"
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:DescribeRepositories"
         ]
         Resource = "*"
       },
       {
+        Sid    = "ECSDeployCartService"
         Effect = "Allow"
         Action = [
           "ecs:UpdateService",
-          "ecs:DescribeServices"
+          "ecs:DescribeServices",
+          "ecs:DescribeClusters"
         ]
         Resource = "*"
       }
@@ -32,11 +57,8 @@ resource "aws_iam_policy" "jenkins_policy" {
   })
 }
 
-resource "aws_iam_user_policy_attachment" "attach" {
-  user       = aws_iam_user.jenkins.name
-  policy_arn = aws_iam_policy.jenkins_policy.arn
-}
-resource "aws_iam_role_policy_attachment" "jenkins_ecr_power_user" {
-  user       = aws_iam_user.jenkins.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+# Attach NEW ECS/ECR policy to Jenkins EC2 role
+resource "aws_iam_role_policy_attachment" "jenkins_ecs_ecr_attach" {
+  role       = aws_iam_role.jenkins_ec2_role.name
+  policy_arn = aws_iam_policy.jenkins_ecs_ecr_policy.arn
 }
