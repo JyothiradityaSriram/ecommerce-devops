@@ -47,7 +47,7 @@ stages {
    stage('Deploy to ECS') {
 steps {
 sh """
-TASK_DEF_ARN=$(aws ecs register-task-definition  --cli-input-json file://ecs-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+TASK_DEF_ARN=\$(aws ecs register-task-definition  --cli-input-json file://ecs-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
 
 
     aws ecs update-service \
