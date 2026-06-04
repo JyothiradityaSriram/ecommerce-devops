@@ -43,24 +43,42 @@ stages {
             """
         }
     }
-
+stage('Render ECS Task Definition') {
+    steps {
+        sh """
+        sed "s|IMAGE_URI|$ECR_REPO:$IMAGE_TAG|g" infra/ecs-task-def-template.json > ecs-task-def.json
+        """
+        sh "cat ecs-task-def.json"
+    }
+}
    stage('Deploy to ECS') {
-steps {
-sh """
-TASK_DEF_ARN=\$(aws ecs register-task-definition  --cli-input-json file://ecs-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+    steps {
+        script {
+            def taskDefArn = sh(
+                script: """
+                aws ecs register-task-definition \
+                  --cli-input-json file://ecs-task-def.json \
+                  --query 'taskDefinition.taskDefinitionArn' \
+                  --output text
+                """,
+                returnStdout: true
+            ).trim()
 
+            sh """
+            aws ecs update-service \
+              --cluster $CLUSTER \
+              --service $SERVICE \
+              --task-definition ${taskDefArn} \
+              --region $AWS_REGION
 
-    aws ecs update-service \
-      --cluster $CLUSTER \
-      --service $SERVICE \
-      --task-definition $TASK_DEF_ARN \
-      --region $AWS_REGION
-
-    aws ecs wait services-stable \
-      --cluster $CLUSTER \
-      --services $SERVICE \
-      --region $AWS_REGION
-    """
+            aws ecs wait services-stable \
+              --cluster $CLUSTER \
+              --services $SERVICE \
+              --region $AWS_REGION
+            """
+        }
+    }
 }
+   
+    }
 }
-
