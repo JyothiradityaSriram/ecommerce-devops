@@ -1,7 +1,6 @@
 pipeline {
 agent any
 
-```
 environment {
     AWS_REGION = "ap-south-1"
     ECR_REPO = "542175649814.dkr.ecr.ap-south-1.amazonaws.com/cart-service"
@@ -45,43 +44,23 @@ stages {
         }
     }
 
-    stage('Render ECS Task Definition') {
-        steps {
-            sh """
-            sed "s|IMAGE_URI|$ECR_REPO:$IMAGE_TAG|g" ecs-task-def-template.json > ecs-task-def.json
-            """
-        }
-    }
+   stage('Deploy to ECS') {
+steps {
+sh """
+TASK_DEF_ARN=$(aws ecs register-task-definition  --cli-input-json file://ecs-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
 
-    stage('Register ECS Task Definition') {
-        steps {
-            sh """
-            aws ecs register-task-definition \
-              --cli-input-json file://ecs-task-def.json \
-              > task-def-output.json
-            """
-        }
-    }
 
-    stage('Deploy to ECS') {
-        steps {
-            sh """
-            TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' task-def-output.json)
+    aws ecs update-service \
+      --cluster $CLUSTER \
+      --service $SERVICE \
+      --task-definition $TASK_DEF_ARN \
+      --region $AWS_REGION
 
-            aws ecs update-service \
-              --cluster $CLUSTER \
-              --service $SERVICE \
-              --task-definition $TASK_DEF_ARN \
-              --region $AWS_REGION
-
-            aws ecs wait services-stable \
-              --cluster $CLUSTER \
-              --services $SERVICE \
-              --region $AWS_REGION
-            """
-        }
-    }
+    aws ecs wait services-stable \
+      --cluster $CLUSTER \
+      --services $SERVICE \
+      --region $AWS_REGION
+    """
 }
-```
-
 }
+
