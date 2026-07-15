@@ -3,7 +3,8 @@ agent any
 
 environment {
     AWS_REGION = "ap-south-1"
-    ECR_REPO = "542175649814.dkr.ecr.ap-south-1.amazonaws.com/cart-service"
+    AWS_ACCOUNT_ID = "886682668143"
+    ECR_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/cart-service"
     CLUSTER = "cart-cluster"
     SERVICE = "cart-service"
     IMAGE_TAG = "${BUILD_NUMBER}"
