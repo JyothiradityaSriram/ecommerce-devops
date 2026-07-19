@@ -25,7 +25,7 @@
         },
         {
           "name": "AWS_REGION",
-          "value": "ap-south-1"
+          "value": "AWS_REGION_PLACEHOLDER"
         },
         {
           "name": "ENV",
