@@ -47,7 +47,10 @@ stages {
 stage('Render ECS Task Definition') {
     steps {
         sh """
-        sed "s|IMAGE_URI|$ECR_REPO:$IMAGE_TAG|g" infra/ecs-task-def-template.json > ecs-task-def.json
+        sed \
+          -e "s|IMAGE_URI|$ECR_REPO:$IMAGE_TAG|g" \
+          -e "s|ACCOUNT_ID|$AWS_ACCOUNT_ID|g" \
+          infra/ecs-task-def-template.json > ecs-task-def.json
         """
         sh "cat ecs-task-def.json"
     }
