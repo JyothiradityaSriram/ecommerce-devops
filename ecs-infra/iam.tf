@@ -26,7 +26,7 @@ resource "aws_iam_role_policy" "dynamodb_policy" {
         "dynamodb:UpdateItem",
         "dynamodb:DeleteItem"
       ]
-      Resource = "arn:aws:dynamodb:ap-south-1:542175649814:table/cart"
+      Resource = "arn:aws:dynamodb:${var.region}:${local.account_id}:table/cart"
     }]
   })
 }

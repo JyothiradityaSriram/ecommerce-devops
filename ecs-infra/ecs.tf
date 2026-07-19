@@ -15,14 +15,24 @@ resource "aws_ecs_task_definition" "task" {
   container_definitions = jsonencode([
     {
       name  = "cart"
-      image = "542175649814.dkr.ecr.ap-south-1.amazonaws.com/cart-service:latest"
+      image = "${aws_ecr_repository.cart.repository_url}:latest"
 
       portMappings = [{
         containerPort = 5000
       }]
 
+      logConfiguration = {
+        logDriver = "awslogs"
+
+        options = {
+          awslogs-group         = "/ecs/cart-service"
+          awslogs-region        = var.region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
+
       environment = [
-        { name = "AWS_REGION", value = "ap-south-1" },
+        { name = "AWS_REGION", value = var.region },
         { name = "CART_TABLE", value = "cart" },
         { name = "JWT_SECRET", value = "secret" },
         { name = "ENV", value = "prod" }
@@ -53,11 +63,11 @@ resource "aws_ecs_service" "service" {
   name            = "cart-service"
   cluster         = aws_ecs_cluster.cluster.id
   task_definition = aws_ecs_task_definition.task.arn
-  desired_count   = 1
+  desired_count   = 0
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = [
+    subnets = [
       aws_subnet.public_1.id,
       aws_subnet.public_2.id
     ]

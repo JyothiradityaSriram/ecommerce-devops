@@ -19,7 +19,7 @@ resource "aws_security_group" "alb_sg" {
 resource "aws_lb" "alb" {
   name               = "cart-alb"
   load_balancer_type = "application"
-  subnets            = [
+  subnets = [
     aws_subnet.public_1.id,
     aws_subnet.public_2.id
   ]
@@ -27,9 +27,9 @@ resource "aws_lb" "alb" {
 }
 
 resource "aws_lb_target_group" "tg" {
-  port     = 5000
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.main.id
+  port        = 5000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
   target_type = "ip" # THIS FIXES YOUR ERROR
 
   health_check {
