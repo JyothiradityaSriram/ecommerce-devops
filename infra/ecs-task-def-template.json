@@ -1,41 +1,41 @@
 {
-"family": "cart-task",
-"networkMode": "awsvpc",
-"requiresCompatibilities": ["FARGATE"],
-"cpu": "256",
-"memory": "512",
-"executionRoleArn": "arn:aws:iam::542175649814:role/ecsExecutionRole-cart",
-"taskRoleArn": "arn:aws:iam::542175649814:role/ecsTaskRole-cart",
-"containerDefinitions": [
-{
-"name": "cart",
-"image": "IMAGE_URI",
-"essential": true,
-"portMappings": [
-{
-"containerPort": 5000,
-"hostPort": 5000,
-"protocol": "tcp"
-}
-],
-"environment": [
-{
-"name": "CART_TABLE",
-"value": "cart"
-},
-{
-"name": "AWS_REGION",
-"value": "ap-south-1"
-},
-{
-"name": "ENV",
-"value": "prod"
-},
-{
-"name": "JWT_SECRET",
-"value": "secret"
-}
-]
-}
-]
+  "family": "cart-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsExecutionRole-cart",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole-cart",
+  "containerDefinitions": [
+    {
+      "name": "cart",
+      "image": "IMAGE_URI",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "hostPort": 5000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "CART_TABLE",
+          "value": "cart"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "ap-south-1"
+        },
+        {
+          "name": "ENV",
+          "value": "prod"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "secret"
+        }
+      ]
+    }
+  ]
 }
