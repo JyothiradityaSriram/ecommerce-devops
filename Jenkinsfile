@@ -44,6 +44,16 @@ stages {
             """
         }
     }
+     stage('Get Secret ARN') {
+    steps {
+        script {
+            env.JWT_SECRET_ARN = sh(
+                script: "terraform -chdir=ecs-infra output -raw jwt_secret_arn",
+                returnStdout: true
+            ).trim()
+        }
+    }
+}
 stage('Render ECS Task Definition') {
     steps {
         sh """
@@ -51,6 +61,7 @@ stage('Render ECS Task Definition') {
           -e "s|IMAGE_URI|$ECR_REPO:$IMAGE_TAG|g" \
           -e "s|ACCOUNT_ID|$AWS_ACCOUNT_ID|g" \
           -e "s|AWS_REGION_PLACEHOLDER|$AWS_REGION|g" \
+          -e "s|JWT_SECRET_ARN|$JWT_SECRET_ARN|g" \
           infra/ecs-task-def-template.json > ecs-task-def.json
         """
         sh "cat ecs-task-def.json"
