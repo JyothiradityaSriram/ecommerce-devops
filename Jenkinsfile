@@ -48,9 +48,17 @@ stages {
     steps {
         script {
             env.JWT_SECRET_ARN = sh(
-                script: "terraform -chdir=ecs-infra output -raw jwt_secret_arn",
+                script: """
+                aws secretsmanager describe-secret \
+                  --secret-id cart-service/jwt-secret \
+                  --query ARN \
+                  --output text \
+                  --region $AWS_REGION
+                """,
                 returnStdout: true
             ).trim()
+
+            echo "Secret ARN: ${env.JWT_SECRET_ARN}"
         }
     }
 }
