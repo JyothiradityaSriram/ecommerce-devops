@@ -34,8 +34,13 @@ resource "aws_ecs_task_definition" "task" {
       environment = [
         { name = "AWS_REGION", value = var.region },
         { name = "CART_TABLE", value = "cart" },
-        { name = "JWT_SECRET", value = "secret" },
         { name = "ENV", value = "prod" }
+      ]
+      secrets = [
+        {
+          name      = "JWT_SECRET"
+          valueFrom = aws_secretsmanager_secret.jwt.arn
+        }
       ]
     }
   ])

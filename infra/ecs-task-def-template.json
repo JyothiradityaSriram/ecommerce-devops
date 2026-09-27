@@ -30,10 +30,12 @@
         {
           "name": "ENV",
           "value": "prod"
-        },
+        }
+      ],
+      "secrets": [
         {
           "name": "JWT_SECRET",
-          "value": "secret"
+          "valueFrom": "JWT_SECRET_ARN"
         }
       ]
     }

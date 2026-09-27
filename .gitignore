@@ -1,11 +1,37 @@
+# Terraform
 .terraform/
-*.zip
-__pycache__/
+**/.terraform/
+
 *.tfstate
 *.tfstate.*
-*.tfstate.backup
+*.tfplan
+*.plan
+.terraform.tfstate.lock.info
+
+# Terraform generated / inspection files
+plan.txt
+current-state.json
+
+# Secrets / environment files
 .env
-*.log
-node_modules/
-.git
+.env.*
+*.pem
+*.key
+
+# Python
+__pycache__/
 *.pyc
+
+# Node
+node_modules/
+
+# Archives
+*.zip
+
+# Logs
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
