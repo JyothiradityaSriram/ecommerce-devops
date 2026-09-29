@@ -181,16 +181,16 @@ resource "aws_cloudwatch_log_metric_filter" "cloudtrail_stop_logging" {
   }
 }
 resource "aws_cloudwatch_metric_alarm" "cloudtrail_stop_logging" {
-  alarm_name          = "cloudtrail-stop-logging"
-  alarm_description   = "Alert when CloudTrail logging is stopped"
+  alarm_name        = "cloudtrail-stop-logging"
+  alarm_description = "Alert when CloudTrail logging is stopped"
 
-  namespace           = "Security/CloudTrail"
-  metric_name         = "CloudTrailStopLoggingCount"
+  namespace   = "Security/CloudTrail"
+  metric_name = "CloudTrailStopLoggingCount"
 
-  statistic           = "Sum"
-  period              = 300
-  evaluation_periods  = 1
-  threshold           = 1
+  statistic          = "Sum"
+  period             = 300
+  evaluation_periods = 1
+  threshold          = 1
 
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "notBreaching"
