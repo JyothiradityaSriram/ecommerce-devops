@@ -1,0 +1,191 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION    = 'ap-south-1'
+        AWS_ACCOUNT   = '886682668143'
+        ECR_REGISTRY  = "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        ECR_REPO      = "${ECR_REGISTRY}/cart-service"
+        EKS_CLUSTER   = 'ecommerce-eks'
+        K8S_NAMESPACE = 'default'
+        IMAGE_TAG     = "${BUILD_NUMBER}"
+        IMAGE_URI     = "${ECR_REPO}:${BUILD_NUMBER}"
+        KUBECONFIG    = "${WORKSPACE}/kubeconfig"
+        VENV          = "${WORKSPACE}/.venv-ci"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup Python Tools') {
+            steps {
+                sh '''
+                    python3 -m venv "$VENV"
+                    "$VENV/bin/python" -m pip install --upgrade pip
+                    "$VENV/bin/pip" install \
+                      -r services/cart-service/requirements.txt \
+                      pytest ruff semgrep
+                '''
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh '''
+                    "$VENV/bin/ruff" check \
+                      services/cart-service/app.py \
+                      services/cart-service/tests
+                '''
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh '''
+                    PYTHONPATH=services/cart-service \
+                      "$VENV/bin/pytest" -v \
+                      services/cart-service/tests
+                '''
+            }
+        }
+
+        stage('Semgrep SAST') {
+            steps {
+                sh '''
+                    "$VENV/bin/semgrep" scan \
+                      --config p/python \
+                      --error \
+                      services/cart-service
+                '''
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir('eks-infra') {
+                    sh '''
+                        terraform fmt -check -recursive
+                        terraform init -backend=false -input=false
+                        terraform validate
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('services/cart-service') {
+                    sh '''
+                        docker build -t "$IMAGE_URI" .
+                    '''
+                }
+            }
+        }
+
+        stage('Trivy Image Scan') {
+            steps {
+                sh '''
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      --exit-code 1 \
+                      "$IMAGE_URI"
+                '''
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                sh '''
+                    aws ecr get-login-password \
+                      --region "$AWS_REGION" |
+                    docker login \
+                      --username AWS \
+                      --password-stdin "$ECR_REGISTRY"
+                '''
+            }
+        }
+
+        stage('Push Image to ECR') {
+            steps {
+                sh 'docker push "$IMAGE_URI"'
+            }
+        }
+
+        stage('Configure EKS') {
+            steps {
+                sh '''
+                    aws eks update-kubeconfig \
+                      --name "$EKS_CLUSTER" \
+                      --region "$AWS_REGION" \
+                      --kubeconfig "$KUBECONFIG"
+
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      auth can-i create deployments \
+                      --namespace "$K8S_NAMESPACE"
+
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      auth can-i create services \
+                      --namespace "$K8S_NAMESPACE"
+                '''
+            }
+        }
+        stage('Deploy to EKS') {
+            steps {
+                sh '''
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      apply -f kubernetes/cart-service/deployment.yaml \
+                      --namespace "$K8S_NAMESPACE"
+
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      apply -f kubernetes/cart-service/service.yaml \
+                      --namespace "$K8S_NAMESPACE"
+
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      set image deployment/cart-service \
+                      cart-service="$IMAGE_URI" \
+                      --namespace "$K8S_NAMESPACE"
+                '''
+            }
+        }
+        stage('Rollout Verification') {
+            steps {
+                sh '''
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      rollout status deployment/cart-service \
+                      --namespace "$K8S_NAMESPACE" \
+                      --timeout=180s
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      get deployment cart-service \
+                      --namespace "$K8S_NAMESPACE"
+
+                    kubectl --kubeconfig "$KUBECONFIG" \
+                      get pods --namespace "$K8S_NAMESPACE" \
+                      -l app=cart-service
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'rm -f "$KUBECONFIG"'
+        }
+        success {
+            echo "EKS deployment successful: ${IMAGE_URI}"
+        }
+        failure {
+            echo 'EKS pipeline failed. Check the stage logs.'
+        }
+    }
+}
