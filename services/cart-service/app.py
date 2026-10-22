@@ -1,18 +1,19 @@
-import os
 import logging
+import os
 from functools import wraps
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+
 import boto3
-from boto3.dynamodb.conditions import Key
 import jwt
+from boto3.dynamodb.conditions import Key
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 # ---------- CONFIG ----------
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 TABLE_NAME = os.getenv("CART_TABLE", "cart")
 
 # JWT Secret (store in env variable in real production)
-JWT_SECRET = os.getenv("JWT_SECRET", "my-super-secret-key")
+JWT_SECRET = os.getenv("JWT_SECRET", "local-development-only-secret-key-32-bytes-minimum")
 JWT_ALGORITHM = "HS256"
 
 # ---------- APP SETUP ----------
@@ -20,6 +21,7 @@ app = Flask(__name__)
 CORS(app)
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ---------- AWS SETUP ----------
 dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
@@ -60,7 +62,7 @@ def token_required(f):
             return jsonify({"error": "Invalid token"}), 401
 
         except Exception:
-            logging.exception("JWT validation failed")
+            logger.exception("JWT validation failed")
             return jsonify({"error": "Authentication failed"}), 401
 
         return f(user_id, *args, **kwargs)
@@ -98,7 +100,7 @@ def add_to_cart(user_id):
         return jsonify({"message": "Cart updated"}), 200
 
     except Exception:
-        logging.exception("Error adding to cart")
+        logger.exception("Error adding to cart")
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -130,7 +132,7 @@ def get_cart(user_id):
         return jsonify({"cart": items}), 200
 
     except Exception:
-        logging.exception("Error fetching cart")
+        logger.exception("Error fetching cart")
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -156,7 +158,7 @@ def remove_from_cart(user_id):
         return jsonify({"message": "Item removed"}), 200
 
     except Exception:
-        logging.exception("Error removing item")
+        logger.exception("Error removing item")
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -190,4 +192,4 @@ def generate_token():
 
 # ---------- ENTRY ----------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="127.0.0.1", port=5000)
