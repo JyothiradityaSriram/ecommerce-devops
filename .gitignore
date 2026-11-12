@@ -21,6 +21,8 @@ current-state.json
 # Python
 __pycache__/
 *.pyc
+*.py[cod]
+.mypy_cache/
 
 # Node
 node_modules/
@@ -35,3 +37,7 @@ node_modules/
 .vscode/
 .idea/
 .DS_Store
+.venv/
+.venv-*/
+.pytest_cache/
+.ruff_cache/

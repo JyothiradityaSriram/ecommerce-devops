@@ -27,7 +27,24 @@ stages {
             }
         }
     }
-
+    stage('Trivy Security Scan') {
+        steps {
+            sh '''
+                trivy image \
+                  --severity HIGH,CRITICAL \
+                  --exit-code 1 \
+                  --format json \
+                  --output trivy-report.json \
+                  "$ECR_REPO:$IMAGE_TAG"
+            '''
+        }
+        post {
+            always {
+                archiveArtifacts artifacts: 'trivy-report.json',
+                                 allowEmptyArchive: true
+            }
+        }
+    }
     stage('Login to ECR') {
         steps {
             sh """
